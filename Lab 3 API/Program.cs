@@ -1,6 +1,9 @@
 
+using Azure;
 using Lab_3_API.Data;
 using Lab_3_API.Models;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 
 namespace Lab_3_API
@@ -39,6 +42,36 @@ namespace Lab_3_API
             app.MapGet("/peoples", async (ApplicationDbContext context) =>
             {
                 var peoples = await context.Peoples.Include(c => c.Hobbys).ThenInclude(x => x.Webpages).ToListAsync();
+                if (peoples == null || !peoples.Any())
+                {
+                    return Results.NotFound("Did not find any people");
+                }
+                return Results.Ok(peoples);
+            });
+
+            //Search for a name that contains a part of a string
+            app.MapGet("/peoples/search", async (string search ,ApplicationDbContext context) =>
+            {
+                var peoples = await context.Peoples.Where(x => x.Name.Contains(search)).Include(c => c.Hobbys).ThenInclude(x => x.Webpages).ToListAsync();
+                if (peoples == null || !peoples.Any())
+                {
+                    return Results.NotFound("Did not find any people");
+                }
+                return Results.Ok(peoples);
+            });
+
+            //Return people with pagination
+            app.MapGet("/peoples/pages", async (int page, int pageSize, ApplicationDbContext context) =>
+            {
+                var totalcount = await context.Peoples.CountAsync();
+                var totalPages = (int)Math.Ceiling((decimal)totalcount / pageSize);
+                var peoples = await context.Peoples
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .Include(c => c.Hobbys)
+                    .ThenInclude(x => x.Webpages)
+                    .ToListAsync();
+
                 if (peoples == null || !peoples.Any())
                 {
                     return Results.NotFound("Did not find any people");
